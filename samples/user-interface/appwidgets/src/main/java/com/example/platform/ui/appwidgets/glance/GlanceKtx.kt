@@ -21,13 +21,12 @@ import android.content.res.Resources
 import android.os.Build
 import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceModifier
-import androidx.glance.GlanceTheme
 import androidx.glance.LocalContext
-import androidx.glance.appwidget.appWidgetBackground
+import androidx.glance.appwidget.components.Scaffold
 import androidx.glance.appwidget.cornerRadius
-import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -45,11 +44,14 @@ fun AppWidgetBox(
     contentAlignment: Alignment = Alignment.TopStart,
     content: @Composable () -> Unit,
 ) {
-    Box(
-        modifier = GlanceModifier.appWidgetBackgroundModifier().then(modifier),
-        contentAlignment = contentAlignment,
-        content = content,
-    )
+    Scaffold {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = contentAlignment,
+        ) {
+            content()
+        }
+    }
 }
 
 /**
@@ -63,35 +65,35 @@ fun AppWidgetColumn(
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = GlanceModifier.appWidgetBackgroundModifier().then(modifier),
-        verticalAlignment = verticalAlignment,
-        horizontalAlignment = horizontalAlignment,
-        content = content,
-    )
+    Scaffold(
+        modifier = GlanceModifier.padding(vertical = widgetPadding)
+    ) {
+        Column(
+            modifier = modifier,
+            verticalAlignment = verticalAlignment,
+            horizontalAlignment = horizontalAlignment,
+            content = content,
+        )
+    }
 }
 
+/**
+ * Applies corner radius for views that are visually positioned [widgetPadding]dp inside of the
+ * widget background.
+ */
 @Composable
-fun GlanceModifier.appWidgetBackgroundModifier(): GlanceModifier {
-    return this.fillMaxSize()
-        .padding(16.dp)
-        .appWidgetBackground()
-        .background(GlanceTheme.colors.background)
-        .appWidgetBackgroundCornerRadius()
-}
-
-fun GlanceModifier.appWidgetBackgroundCornerRadius(): GlanceModifier {
-    if (Build.VERSION.SDK_INT >= 31) {
-        cornerRadius(android.R.dimen.system_app_widget_background_radius)
-    }
-    return cornerRadius(16.dp)
-}
-
 fun GlanceModifier.appWidgetInnerCornerRadius(): GlanceModifier {
-    if (Build.VERSION.SDK_INT >= 31) {
-        return cornerRadius(android.R.dimen.system_app_widget_inner_radius)
+    if (Build.VERSION.SDK_INT < 31) {
+        return this
     }
-    return cornerRadius(8.dp)
+    val resources = LocalContext.current.resources
+    // get dimension in float (without rounding).
+    val px = resources.getDimension(android.R.dimen.system_app_widget_background_radius)
+    val widgetBackgroundRadiusDpValue = px / resources.displayMetrics.density
+    if (widgetBackgroundRadiusDpValue < widgetPadding.value) {
+        return this
+    }
+    return this.cornerRadius(Dp(widgetBackgroundRadiusDpValue - widgetPadding.value))
 }
 
 @Composable
@@ -100,3 +102,4 @@ fun stringResource(@StringRes id: Int, vararg args: Any): String {
 }
 
 val Float.toPx get() = this * Resources.getSystem().displayMetrics.density
+val widgetPadding = 12.dp
